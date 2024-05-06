@@ -1,5 +1,5 @@
 package tn.esprit.pi.entities;
 
 public enum Role {
-    Etudiant ,Admin
+    Etudiant ,Admin, Entreprise
 }

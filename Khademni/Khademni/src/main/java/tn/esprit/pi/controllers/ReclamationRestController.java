@@ -64,7 +64,7 @@ public class ReclamationRestController {
         return newReclamation;
     }
 
-    @PostMapping("/sendPDF")
+  /*  @PostMapping("/sendPDF")
     public ResponseEntity<?> sendPDF(@RequestParam("file") MultipartFile file) {
         try {
             emailService.sendEmailWithAttachment(
@@ -77,7 +77,7 @@ public class ReclamationRestController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error sending PDF");
         }
-    }
+    }*/
 
     @PutMapping("/updateRec")
     public ResponseEntity<Reclamation> updateReclamation(

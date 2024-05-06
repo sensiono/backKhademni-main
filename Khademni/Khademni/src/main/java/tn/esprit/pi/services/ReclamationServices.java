@@ -2,6 +2,7 @@ package tn.esprit.pi.services;
 
 import org.springframework.scheduling.annotation.Async;
 import tn.esprit.pi.entities.Reclamation;
+import tn.esprit.pi.entities.Role;
 import tn.esprit.pi.entities.User;
 import tn.esprit.pi.repositories.IReclamationRepository;
 import tn.esprit.pi.repositories.UserRepository;
@@ -20,6 +21,7 @@ public class ReclamationServices implements IReclamationServices {
 
     private final IReclamationRepository ireclamationRepository;
     private final UserRepository userRepository;
+    private final ChatBotService chatBotService;
 
     @Override
     public Reclamation addReclamation(Reclamation reclamation) {
@@ -59,12 +61,16 @@ public class ReclamationServices implements IReclamationServices {
         Reclamation existingReclamation = getById(reclamation.getIdRec());
 
         // Check if the current user is authorized to update the reclamation
-        if (!existingReclamation.getUser().getId().equals(currentUser.getId())) {
+        // Allow if the current user is the owner or has the admin role
+        if (!existingReclamation.getUser().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.Admin) {
             throw new SecurityException("You are not authorized to update this reclamation");
         }
 
+        // Update fields
         existingReclamation.setDescription(reclamation.getDescription());
         existingReclamation.setEtat(reclamation.getEtat());
+
+
 
         return ireclamationRepository.save(existingReclamation);
     }

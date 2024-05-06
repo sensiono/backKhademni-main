@@ -11,4 +11,6 @@ public interface IReclamationRepository extends CrudRepository<Reclamation,Long>
 
     @Query("SELECT c FROM Reclamation c WHERE c.user.id = :id")
     public List<Reclamation> getReclamationByUsername(@Param("id") Integer id);
+
+    List<Reclamation> findByDescriptionContaining(String keyword);
 }

@@ -16,11 +16,13 @@ public interface AuthenticationService {
 
     public void logout() ;
 
+    void updatePassword(String token, String newPassword);
 
     public String createVerifyAccountToken(User concernedUser ) ;
 
+    void sendResetPasswordEmail(User user, String token) throws MessagingException;
 
-
+    public String createResetPasswordToken(User user);
 
     public void sendVerifyAccountEmail(String email) throws  MessagingException;
 

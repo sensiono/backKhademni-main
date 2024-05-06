@@ -45,17 +45,46 @@ public class AuthenticationServiceImp implements AuthenticationService {
     private final ResetPasswordTokenRepository resetPasswordTokenRepository ;
     private final VerifyAccountTokenRepository verifyAccountTokenRepository ;
 
+    private static final String[] ALLOWED_DOMAINS = {
+            "gmail.com",
+            "esprit.tn",
+            "yahoo.fr",
+            "yahoo.com",
+            "hotmail.com"
+    };
+
     @Value("${BASE_API_URL}")
     private String baseApiUrl ;
 
-
     public void register(RegisterRequest request) throws MessagingException {
-        var user = User.builder()
+
+        // Extract domain from email
+        String email = request.getEmail().trim();
+        String[] emailParts = email.split("@");
+        String domain = emailParts.length > 1 ? emailParts[1] : "";
+
+        // Default role to "Etudiant"
+        Role role = Role.Etudiant;
+
+        // Check if the domain is not in the allowed list
+        boolean isStandardDomain = false;
+        for (String allowedDomain : ALLOWED_DOMAINS) {
+            if (domain.equalsIgnoreCase(allowedDomain)) {
+                isStandardDomain = true;
+                break;
+            }
+        }
+
+        if (!isStandardDomain) {
+            role = Role.Entreprise; // If not a standard domain, assign "Entreprise"
+        }
+
+        User  user = User.builder()
                 .firstname(request.getFirstname())
                 .lastname(request.getLastname())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.Etudiant)
+                .role(role)
                 .registrationDate(new Date())
                 .enabled(false)
                 .build() ;
@@ -103,6 +132,50 @@ public class AuthenticationServiceImp implements AuthenticationService {
         mimeMessageHelper.setSubject("verify account");
         mimeMessageHelper.setText(processedHTMLTemplate, true);
 
+        javaMailSender.send(mimeMessage);
+    }
+
+    public String createResetPasswordToken(User user) {
+        // Remove existing tokens for this user
+        resetPasswordTokenRepository.removeAllByUser(user);
+
+        UUID uuid = UUID.randomUUID();
+        String tokenValue = uuid.toString();
+
+        ResetPasswordToken token = ResetPasswordToken.builder()
+                .token(tokenValue)
+                .expiryDateTime(LocalDateTime.now().plusHours(2)) // Token valid for 2 hours
+                .user(user)
+                .build();
+
+        resetPasswordTokenRepository.save(token);
+
+        return tokenValue;
+    }
+
+
+    public void sendResetPasswordEmail(User user, String token) throws MessagingException {
+        // Generate the reset password link
+        String resetLink = baseApiUrl + "/api/v1/auth/reset-password?token=" + token;
+
+        // Set up the context for Thymeleaf
+        Context context = new Context();
+        context.setVariable("fullName", user.getFirstname() + " " + user.getLastname());
+        context.setVariable("link", resetLink);
+
+        // Process the template with Thymeleaf
+        String emailContent = templateEngine.process("resetPasswordEmail", context);
+
+        // Create a MIME message for the email
+        MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+        MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage);
+
+        mimeMessageHelper.setFrom(new InternetAddress("noreply@yourdomain.com")); // Change this to your sender email
+        mimeMessageHelper.setTo(user.getEmail());
+        mimeMessageHelper.setSubject("Reset Your Password");
+        mimeMessageHelper.setText(emailContent, true); // Set to true for HTML content
+
+        // Send the email
         javaMailSender.send(mimeMessage);
     }
 
@@ -160,6 +233,32 @@ public class AuthenticationServiceImp implements AuthenticationService {
     public void logout() {
         SecurityContextHolder.clearContext();
 
+    }
+
+    public void updatePassword(String token, String newPassword) {
+        // Find the reset token
+        ResetPasswordToken resetToken = resetPasswordTokenRepository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired reset token"));
+
+        // Check if the token is expired
+        if (LocalDateTime.now().isAfter(resetToken.getExpiryDateTime())) {
+            throw new IllegalArgumentException("Reset token has expired");
+        }
+
+        // Get the user associated with the token
+        User user = resetToken.getUser();
+
+        // Encode the new password
+        String encodedPassword = passwordEncoder.encode(newPassword);
+
+        // Update the user's password
+        user.setPassword(encodedPassword);
+
+        // Save the user to persist the change
+        userRepository.save(user);
+
+        // Invalidate the token after updating the password
+        resetPasswordTokenRepository.delete(resetToken);
     }
 
 

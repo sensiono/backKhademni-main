@@ -5,7 +5,11 @@ import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,10 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+import tn.esprit.pi.controllers.AuthenticationController;
 import tn.esprit.pi.dto.requests.AuthenticationRequest;
+import tn.esprit.pi.dto.requests.ModifyUserProfileRequest;
 import tn.esprit.pi.dto.requests.RegisterRequest;
 import tn.esprit.pi.dto.responses.AuthenticationResponse;
-import tn.esprit.pi.entities.ResetPasswordToken;
 import tn.esprit.pi.entities.Role;
 import tn.esprit.pi.entities.User;
 import tn.esprit.pi.entities.VerifyAccountToken;
@@ -30,6 +35,7 @@ import tn.esprit.pi.repositories.VerifyAccountTokenRepository;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 @Service
 @RequiredArgsConstructor
@@ -44,47 +50,20 @@ public class AuthenticationServiceImp implements AuthenticationService {
     private final TemplateEngine templateEngine;
     private final ResetPasswordTokenRepository resetPasswordTokenRepository ;
     private final VerifyAccountTokenRepository verifyAccountTokenRepository ;
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationController.class);
 
-    private static final String[] ALLOWED_DOMAINS = {
-            "gmail.com",
-            "esprit.tn",
-            "yahoo.fr",
-            "yahoo.com",
-            "hotmail.com"
-    };
 
     @Value("${BASE_API_URL}")
     private String baseApiUrl ;
 
+
     public void register(RegisterRequest request) throws MessagingException {
-
-        // Extract domain from email
-        String email = request.getEmail().trim();
-        String[] emailParts = email.split("@");
-        String domain = emailParts.length > 1 ? emailParts[1] : "";
-
-        // Default role to "Etudiant"
-        Role role = Role.Etudiant;
-
-        // Check if the domain is not in the allowed list
-        boolean isStandardDomain = false;
-        for (String allowedDomain : ALLOWED_DOMAINS) {
-            if (domain.equalsIgnoreCase(allowedDomain)) {
-                isStandardDomain = true;
-                break;
-            }
-        }
-
-        if (!isStandardDomain) {
-            role = Role.Entreprise; // If not a standard domain, assign "Entreprise"
-        }
-
-        User  user = User.builder()
+        var user = User.builder()
                 .firstname(request.getFirstname())
                 .lastname(request.getLastname())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(role)
+                .role(Role.Etudiant)
                 .registrationDate(new Date())
                 .enabled(false)
                 .build() ;
@@ -135,50 +114,6 @@ public class AuthenticationServiceImp implements AuthenticationService {
         javaMailSender.send(mimeMessage);
     }
 
-    public String createResetPasswordToken(User user) {
-        // Remove existing tokens for this user
-        resetPasswordTokenRepository.removeAllByUser(user);
-
-        UUID uuid = UUID.randomUUID();
-        String tokenValue = uuid.toString();
-
-        ResetPasswordToken token = ResetPasswordToken.builder()
-                .token(tokenValue)
-                .expiryDateTime(LocalDateTime.now().plusHours(2)) // Token valid for 2 hours
-                .user(user)
-                .build();
-
-        resetPasswordTokenRepository.save(token);
-
-        return tokenValue;
-    }
-
-
-    public void sendResetPasswordEmail(User user, String token) throws MessagingException {
-        // Generate the reset password link
-        String resetLink = baseApiUrl + "/api/v1/auth/reset-password?token=" + token;
-
-        // Set up the context for Thymeleaf
-        Context context = new Context();
-        context.setVariable("fullName", user.getFirstname() + " " + user.getLastname());
-        context.setVariable("link", resetLink);
-
-        // Process the template with Thymeleaf
-        String emailContent = templateEngine.process("resetPasswordEmail", context);
-
-        // Create a MIME message for the email
-        MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-        MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage);
-
-        mimeMessageHelper.setFrom(new InternetAddress("noreply@yourdomain.com")); // Change this to your sender email
-        mimeMessageHelper.setTo(user.getEmail());
-        mimeMessageHelper.setSubject("Reset Your Password");
-        mimeMessageHelper.setText(emailContent, true); // Set to true for HTML content
-
-        // Send the email
-        javaMailSender.send(mimeMessage);
-    }
-
 
     public void verifyAccount(String token) {
         VerifyAccountToken givenToken = verifyAccountTokenRepository.findByToken(token).orElse(null) ;
@@ -193,6 +128,7 @@ public class AuthenticationServiceImp implements AuthenticationService {
             throw new RuntimeException("there was a problem verifying the user, request another verification email !") ;
         }
     }
+
 
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
@@ -235,34 +171,57 @@ public class AuthenticationServiceImp implements AuthenticationService {
 
     }
 
-    public void updatePassword(String token, String newPassword) {
-        // Find the reset token
-        ResetPasswordToken resetToken = resetPasswordTokenRepository.findByToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired reset token"));
+    public ResponseEntity<?> modifyUserProfile(Integer userId, ModifyUserProfileRequest request) {
+        try {
+            logger.info("Received request to modify user profile for user ID: {}", userId);
 
-        // Check if the token is expired
-        if (LocalDateTime.now().isAfter(resetToken.getExpiryDateTime())) {
-            throw new IllegalArgumentException("Reset token has expired");
+            // Fetch the user from the repository
+            User user = userRepository.findById((userId))
+                    .orElseThrow(() -> {
+                        logger.error("User not found for ID: {}", userId);
+                        return new RuntimeException("User not found");
+                    });
+
+            // Log the user details
+            logger.info("Found user with ID {}: {}", userId, user);
+
+            // Check old password
+            if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+                logger.error("Incorrect old password for user ID: {}", userId);
+                throw new RuntimeException("Incorrect old password");
+            }
+
+            // Log the request details
+            logger.info("Received modify profile request: {}", request);
+
+            // Update user details
+            user.setFirstname(request.getFirstname());
+            user.setEmail(request.getEmail());
+            // Update other fields as needed
+
+            // If a new password is provided, update it
+            if (request.getNewPassword() != null && !request.getNewPassword().isEmpty()) {
+                user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            }
+
+            // Save the updated user to the repository
+            userRepository.save(user);
+
+            logger.info("User profile successfully updated for user ID: {}", userId);
+
+            // Return success response
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            // Log any exceptions that occur
+            logger.error("Error modifying user profile for user ID {}: {}", userId, e.getMessage(), e);
+            // Return an appropriate error response
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error modifying user profile");
         }
-
-        // Get the user associated with the token
-        User user = resetToken.getUser();
-
-        // Encode the new password
-        String encodedPassword = passwordEncoder.encode(newPassword);
-
-        // Update the user's password
-        user.setPassword(encodedPassword);
-
-        // Save the user to persist the change
-        userRepository.save(user);
-
-        // Invalidate the token after updating the password
-        resetPasswordTokenRepository.delete(resetToken);
     }
 
 
-
-
+    public List<User> getAllUsers () {
+        return userRepository.findAll();
+    }
 
 }

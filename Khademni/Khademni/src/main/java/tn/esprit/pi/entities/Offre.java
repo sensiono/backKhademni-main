@@ -5,8 +5,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-import java.util.List;
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,6 +20,8 @@ public class Offre {
     private String duree;
     private double remuneration;
     private boolean favoris;
+    private String typeOffre; // New field for type of offer
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;

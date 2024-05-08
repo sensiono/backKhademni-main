@@ -35,7 +35,10 @@ public class SecurityConfig implements WebMvcConfigurer {
                     cors.configurationSource(corsConfigurationSource());
                 })
                 .authorizeHttpRequests(req -> req
-                        .requestMatchers("/api/v1/auth/**", "/chatbot/**").permitAll() // Public paths
+                        .requestMatchers("/api/v1/auth/**", "/api/v1/auth/profile/","/api/v1/auth/all",
+                                "/chatbot/**","/books/**","/saveBook","/books/all","/books/archived/","/archived/","/books/modifier","/updateBook/{bookId}","/all",
+                                "/books/findAllBooks","books/updateBook/","/findAllBooks","/books/user/genres","/user/genres","/books/findUserGenres","/books/findUserTopGenre","/books/recommendations","/recommendations","/books/findUserTopGenre")
+                        .permitAll() // Public paths
                         .requestMatchers("/api/v1/admin/**").hasAuthority(Role.Admin.toString()) // Admin-only paths
                         .anyRequest().authenticated() // All other paths require authentication
                 )

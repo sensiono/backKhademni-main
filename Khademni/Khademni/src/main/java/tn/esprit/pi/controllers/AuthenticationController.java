@@ -1,6 +1,5 @@
 package tn.esprit.pi.controllers;
 
-import jakarta.mail.MessagingException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -10,20 +9,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.WebUtils;
 import tn.esprit.pi.dto.requests.AuthenticationRequest;
+import tn.esprit.pi.dto.requests.ModifyUserProfileRequest;
 import tn.esprit.pi.dto.requests.RegisterRequest;
-import tn.esprit.pi.dto.requests.ResetPasswordRequest;
 import tn.esprit.pi.dto.responses.AuthenticationResponse;
 import tn.esprit.pi.dto.responses.MessageResponse;
-import tn.esprit.pi.entities.ResetPasswordToken;
 import tn.esprit.pi.entities.User;
-import tn.esprit.pi.repositories.ResetPasswordTokenRepository;
-import tn.esprit.pi.repositories.UserRepository;
 import tn.esprit.pi.services.AuthenticationService;
-import java.io.IOException;
-
 
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -31,15 +25,14 @@ import java.time.LocalDateTime;
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService ;
-    private final UserRepository userRepository;
-    private final ResetPasswordTokenRepository resetPasswordTokenRepository;
-
 
 
     @GetMapping("/test")
     public String test() {
         return "connected" ;
     }
+
+
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
@@ -102,6 +95,17 @@ public class AuthenticationController {
                 .header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
                 .body(responseBody);
     }
+    @PutMapping("/profile/{userId}")
+    public ResponseEntity<?> modifyUserProfile(@PathVariable Integer userId, @RequestBody ModifyUserProfileRequest request) {
+        return authenticationService.modifyUserProfile(userId, request);
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<User>> getAllUsers() {
+        List<User> users = authenticationService.getAllUsers();
+        return ResponseEntity.ok(users);
+    }
+
 
     @GetMapping("/refresh_token")
     public ResponseEntity<AuthenticationResponse> refresh_token(HttpServletRequest request) throws IOException {
@@ -144,45 +148,4 @@ public class AuthenticationController {
 
 
     }
-
-    @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestBody String email) throws MessagingException {
-        User user = userRepository.findByEmail(email.trim()).orElse(null);
-
-        if (user == null) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Email not found"));
-        }
-
-        String token = authenticationService.createResetPasswordToken(user);
-        authenticationService.sendResetPasswordEmail(user, token);
-
-        return ResponseEntity.ok(new MessageResponse("Password reset link sent to email"));
-    }
-
-    @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
-        // Check if the provided reset token is valid
-        ResetPasswordToken token = resetPasswordTokenRepository.findByToken(request.getToken())
-                .orElse(null);
-
-        if (token == null || LocalDateTime.now().isAfter(token.getExpiryDateTime())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Invalid or expired token"));
-        }
-
-        // Now that you have a valid token, call the `updatePassword` method with the token and the new password
-        authenticationService.updatePassword(request.getToken(), request.getNewPassword());
-
-        return ResponseEntity.ok(new MessageResponse("Password has been reset"));
-    }
-
-
-
-
-
-
-
-
-
-
-
 }

@@ -90,4 +90,8 @@ public class ReclamationServices implements IReclamationServices {
     public List<Reclamation> getAll() {
         return (List<Reclamation>) ireclamationRepository.findAll();
     }
+
+    public Reclamation getLastReclamationForUser(User user) {
+        return ireclamationRepository.findTopByUserOrderByCreatedAtDesc(user);
+    }
 }

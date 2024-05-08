@@ -15,6 +15,18 @@ nltk.download('punkt')
 
 data = {
     'question': [
+	"I bought a service on a freelance marketplace, but the freelancer missed the deadline and the quality was poor. Attempts to get a refund or support have been fruitless, adding to my dissatisfaction.",  
+        "I recently purchased a service on a freelance platform, but the deliverable wasn't as promised. Customer support has been slow to respond, leaving me frustrated and seeking a resolution.",          	"What are the terms for filing a reclamation?",  # Reclamation policy
+        "How do I resolve a freelance dispute?",  # Dispute resolution
+        "Can I get a refund for a freelance service?",  # Refund policies
+        "How can I contact customer support?",  # Contacting support
+        "What should I do if a freelancer doesn't deliver?",  # Freelancer not delivering
+        "How do I escalate a freelance issue?",  # Escalating issues
+        "What's the process for getting a refund?",  # Refund process
+        "Is there a timeline for resolving freelance disputes?",  # Dispute resolution timeline
+        "How do I leave feedback for a freelancer?",  # Providing feedback
+        "What happens if a freelancer doesn't respond?",  # No response from freelancer
+        "What if the freelancer is unprofessional?",  # Unprofessional freelancer,
 	"Hello!",
     "How are you?",
     "What's your name?",
@@ -102,6 +114,19 @@ data = {
         "What is a reclamation ID?"
     ],
     'response': [
+	"We're sorry to hear about your experience. Please provide more details to help us resolve the issue. You can contact our support team for further assistance.",  # Response for poor freelance quality
+        "We understand your frustration. You can file a reclamation or initiate a dispute. Please contact our support team for guidance.",  # Response for incomplete freelance work
+        "We apologize for the inconvenience. You can initiate a complaint process through our support team. Please provide the project details to expedite the resolution.",  # Response for delayed deliverables
+        "To file a reclamation, you need to provide proof of the issue and any related communication. Contact our support team for more information.",  # Reclamation process
+        "To resolve a freelance dispute, you can initiate a mediation process through our platform. Contact support for more details.",  # Dispute resolution process
+        "Refunds depend on the contract terms and the nature of the issue. Please contact our support team to check your eligibility for a refund.",  # Refund eligibility
+        "You can contact our customer support through email or live chat on our website. We're here to help.",  # Contacting support
+        "If a freelancer doesn't deliver, you can escalate the issue through our platform's dispute resolution process.",  # Escalating non-delivery
+        "To escalate an issue, contact our support team and explain your situation. We will guide you through the next steps.",  # Escalation process
+        "To get a refund, provide proof of the issue and follow the refund process outlined on our platform.",  # Refund process
+        "The timeline for resolving freelance disputes depends on the complexity of the case. Generally, it takes a few days to a couple of weeks.",  # Dispute resolution timeline
+        "To leave feedback, visit the freelancer's profile and use the feedback section. Be honest and constructive.",  # Leaving feedback
+        "If a freelancer doesn't respond, contact support. We will reach out to the freelancer on your behalf.", 
 	"Hello! How can I assist you today?",
     "I'm just a chatbot, but I'm here to help you!",
     "I'm a virtual assistant.",

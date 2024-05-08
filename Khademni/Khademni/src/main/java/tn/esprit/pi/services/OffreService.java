@@ -36,8 +36,6 @@ public class OffreService implements IOffreService {
         return offreRepository.findAll();
     }
 
-
-
     @Override
     public Offre updateOffre(Offre offre, User currentUser) {
         Offre existingOffre = getOffreById(offre.getId());
